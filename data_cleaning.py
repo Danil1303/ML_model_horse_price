@@ -27,11 +27,12 @@ def get_breeds() -> list[str]:
         breeds = []
         for element in soup_options:
             if element[0].isalpha():
-                breeds.append(element)
+                breeds.append(element.lower())
             else:
                 with open('breeds.txt', 'w') as output:
                     for breed in breeds:
                         output.write(str(breed) + '\n')
+                break
     return breeds
 
 
@@ -76,6 +77,20 @@ def color_clear(df_color: str) -> Union[str, None]:
         return None
 
 
+def breed_clear(breed: str):
+    # Функция для форматирования столбца 'Breed'
+    if breed.lower() in breeds:
+        return breed.capitalize()
+    elif bool(re.search(r'Пони|они', breed)):
+        return 'Помесь пони'
+    elif bool(re.search(r'олу|омес|-|\+|/', breed)):
+        return 'Помесь'
+    else:
+        return None
+
+
+
+
 df = pd.read_csv('raw_data/equestrian.csv')
 df.info()
 df.dropna(subset=['Price'], inplace=True)
@@ -85,22 +100,12 @@ df = df.loc[df['Price'] >= 30000]
 df['Breed'] = df['Breed'].fillna('Без породы')
 df.drop(['Name', 'Sizes', 'Advertisement data', 'Region', 'Location', 'Horse club', 'Contacts'], axis=1, inplace=True)
 
-# TODO вывести в отдельную функцию и добавить учёт регистра
+
 # Форматирование столбца 'Breed'
 breeds = get_breeds()
-df_raw_breeds = df[df['Breed'].isin(breeds) == False]
-df = df[df['Breed'].isin(breeds) == True]
-raw_breeds = set(df_raw_breeds['Breed'].tolist())
-# Объединение нескольких семантически одинаковых типов, но имеющих разное написание, в один
-df_pony = df_raw_breeds[df_raw_breeds['Breed'].str.contains(r'Пони|они')]
-df_raw_breeds = df_raw_breeds.drop(df_pony.index)
-df_pony.reset_index(drop=True)
-df_pony['Breed'] = 'Помесь пони'
-df_crossbreed = df_raw_breeds[df_raw_breeds['Breed'].str.contains(r'олу|омес|-|\+|/')]
-df_raw_breeds = df_raw_breeds.drop(df_crossbreed.index)
-df_crossbreed.reset_index(drop=True)
-df_crossbreed['Breed'] = 'Помесь'
-df = pd.concat([df, df_crossbreed, df_pony])
+df['Breed'] = df['Breed'].apply(breed_clear)
+df.dropna(subset=['Breed'], inplace=True)
+
 
 # Форматирование столбца 'Height'
 df['Height'] = df['Height'].apply(height_clear)
@@ -111,9 +116,6 @@ df = df.drop(df[(df['Height'] < 30) | (df['Height'] > 250)].index)
 df['Color'] = df['Color'].apply(color_clear)
 df.dropna(subset=['Color'], inplace=True)
 df.info()
-print(df['Breed'].unique())
-print(df['Breed'].value_counts())
-
 
 if not os.path.exists('clean_data'):
     os.makedirs('clean_data')
