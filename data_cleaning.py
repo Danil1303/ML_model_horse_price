@@ -64,10 +64,8 @@ def height_clear(height_str: str) -> Union[float, None]:
 pd.set_option("display.max_rows", None)
 
 
-def color_clear(df_color: str) -> Union[str, None]:
+def color_clear(df_color: str, main_colors: list[str]) -> Union[str, None]:
     # Функция для форматирования столбца 'Color'
-    main_colors = ['Гнед', 'Рыж', 'Сер', 'Ворон', 'Пег', 'Солов', 'Караков', 'Булан', 'Бур', 'Чубар',
-                   'Изабеллов', 'Игренев', 'Мышаст', 'Саврас', 'Чал']
     for color in main_colors:
         if color.lower() in df_color.lower():
             return color + 'ой'
@@ -77,7 +75,8 @@ def color_clear(df_color: str) -> Union[str, None]:
         return None
 
 
-def breed_clear(breed: str):
+def breed_clear(breed: str) -> Union[str, None]:
+    breeds = get_breeds()
     # Функция для форматирования столбца 'Breed'
     if breed.lower() in breeds:
         return breed.capitalize()
@@ -89,34 +88,48 @@ def breed_clear(breed: str):
         return None
 
 
+def age_clear(age: str) -> Union[int, None]:
+    if '-' in age:
+        return 0
+    search_digits = re.search(r'\((\d+) [а-яА-Я]+\)', age)
+    if bool(search_digits):
+        return search_digits.group(1)
 
 
-df = pd.read_csv('raw_data/equestrian.csv')
-df.info()
-df.dropna(subset=['Price'], inplace=True)
-df.dropna(subset=['Color'], inplace=True)
-df.dropna(subset=['Height'], inplace=True)
-df = df.loc[df['Price'] >= 30000]
-df['Breed'] = df['Breed'].fillna('Без породы')
-df.drop(['Name', 'Sizes', 'Advertisement data', 'Region', 'Location', 'Horse club', 'Contacts'], axis=1, inplace=True)
+def clear_data() -> None:
+    df = pd.read_csv('raw_data/equestrian.csv')
+    df.info()
+    df.dropna(subset=['Price'], inplace=True)
+    df.dropna(subset=['Color'], inplace=True)
+    df.dropna(subset=['Height'], inplace=True)
+    df = df.loc[df['Price'] >= 30000]
+    df['Breed'] = df['Breed'].fillna('Без породы')
+    df.drop(['Name', 'Sizes', 'Advertisement data', 'Region', 'Location', 'Horse club', 'Contacts'], axis=1,
+            inplace=True)
+
+    # Форматирование столбца 'Breed'
+    df['Breed'] = df['Breed'].apply(breed_clear(5))
+
+    # Форматирование столбца 'Height'
+    df['Height'] = df['Height'].apply(height_clear)
+    df = df.drop(df[(df['Height'] < 30) | (df['Height'] > 250)].index)
+
+    # Форматирование столбца 'Color'
+    main_colors = ['Гнед', 'Рыж', 'Сер', 'Ворон', 'Пег', 'Солов', 'Караков', 'Булан', 'Бур', 'Чубар',
+                   'Изабеллов', 'Игренев', 'Мышаст', 'Саврас', 'Чал']
+    df['Color'] = df['Color'].apply(color_clear(main_colors))
+
+    # Форматирование столбца 'Age'
+    df['Age'] = df['Age'].apply(age_clear)
+
+    df.dropna(subset=['Breed'], inplace=True)
+    df.dropna(subset=['Height'], inplace=True)
+    df.dropna(subset=['Color'], inplace=True)
+    df.info()
+
+    if not os.path.exists('clean_data'):
+        os.makedirs('clean_data')
+    df.to_csv('clean_data/equestrian.csv', encoding='utf-8-sig', index=False)
 
 
-# Форматирование столбца 'Breed'
-breeds = get_breeds()
-df['Breed'] = df['Breed'].apply(breed_clear)
-df.dropna(subset=['Breed'], inplace=True)
-
-
-# Форматирование столбца 'Height'
-df['Height'] = df['Height'].apply(height_clear)
-df.dropna(subset=['Height'], inplace=True)
-df = df.drop(df[(df['Height'] < 30) | (df['Height'] > 250)].index)
-
-# Форматирование столбца 'Color'
-df['Color'] = df['Color'].apply(color_clear)
-df.dropna(subset=['Color'], inplace=True)
-df.info()
-
-if not os.path.exists('clean_data'):
-    os.makedirs('clean_data')
-df.to_csv('clean_data/equestrian.csv', encoding='utf-8-sig', index=False)
+clear_data()
