@@ -23,12 +23,12 @@ def parse():
     euro_url = 'https://www.google.ru/search?newwindow=1&sca_esv=556757575&sxsrf=AB5stBjzP_7eUM5V7wzNNpWaOMAl82TB6g:1692019571030&q=Курс+евро+к+рублю+на+сегодня&uds=H4sIAAAAAAAA_-PK5RK-MPfCBoWLjRe2Xth8Yd-FLRf2XuwXkr-w62LzxYaLjQpA4U0XGy7sU7iwSwEo0Hxh44XdF_sMmIqML8zCq0Thwl4McwF6BQTgbwAAAA&sa=X&ved=2ahUKEwiYx--LoNyAAxWNIhAIHTCBCssQxKsJegQICRAB&ictx=0&biw=1488&bih=724&dpr=1.25'
     response = requests.get(dollar_url, headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
-    soup_dollar_course = soup.findAll("span", {"class": "DFlfde", "class": "SwHCTb", "data-precision": 2})
+    soup_dollar_course = soup.findAll("span", {"class": "DFlfde SwHCTb", "data-precision": 2})
     dollar_course = float(soup_dollar_course[0].text.replace(',', '.'))
 
     response = requests.get(euro_url, headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
-    soup_euro_course = soup.findAll("span", {"class": "DFlfde", "class": "SwHCTb", "data-precision": 2})
+    soup_euro_course = soup.findAll("span", {"class": "DFlfde SwHCTb", "data-precision": 2})
     euro_course = float(soup_euro_course[0].text.replace(',', '.'))
 
     p, i = 0, 0
