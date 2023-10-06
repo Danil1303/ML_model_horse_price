@@ -6,11 +6,13 @@ import numpy as np
 import pandas as pd
 from time import time
 from typing import Union
+from datetime import date
 from bs4 import BeautifulSoup
+from PyQt5.QtWidgets import QPlainTextEdit
 from requests.adapters import HTTPAdapter, Retry
 
 
-def parse():
+def parse_initialize(log_plain_text_edit: QPlainTextEdit):
     parse_start = time()
     session = requests.Session()
     retry = Retry(connect=5, backoff_factor=1)
@@ -35,29 +37,98 @@ def parse():
     soup_euro_course = soup.findAll("span", {"class": "DFlfde SwHCTb", "data-precision": 2})
     euro_course = float(soup_euro_course[0].text.replace(',', '.'))
 
-    p, i = 0, 0
     data = []
-    columns = ['Name', 'Price', 'Age', 'Sex', 'Color', 'Height', 'Sizes', 'Breed', 'Advertisement data',
-               'Region', 'Location', 'Horse club', 'Contacts']
-    while True:
-        start = time()
-        page = f'?p={p}'
-        response = session.get(url + category + (page if p else ''))
-        p += 1
-        soup = BeautifulSoup(response.content, 'html.parser')
-        contents = soup.findAll('div', class_='offer')
+    # columns = ['Name', 'Price', 'Age', 'Sex', 'Color', 'Height', 'Sizes', 'Breed', 'Advertisement data',
+    #            'Region', 'Location', 'Horse club', 'Contacts']
+    log_plain_text_edit.insertPlainText(f'Старт парсинга.\n')
+    return session, url, category, dollar_course, euro_course, data
+    # while flag:
+    #     start = time()
+    #     page = f'?p={p}'
+    #     response = session.get(url + category + (page if p else ''))
+    #     p += 1
+    #     soup = BeautifulSoup(response.content, 'html.parser')
+    #     contents = soup.findAll('div', class_='offer')
+    #
+    #     if not contents:
+    #         break
+    #
+    #     links = []
+    #     for item in contents:
+    #         try:
+    #             name = next(iter(item.find('a', href=True))).strip()
+    #             price = next(iter(item.find('div', class_='price'))).strip()
+    #             links.append(item.find('a', href=True)['href'])
+    #         except StopIteration:
+    #             log_plain_text_edit.insertPlainText(
+    #                 f'Пустое объявление по адресу {url + item.find("a", href=True)["href"]}.\n')
+    #         else:
+    #             try:
+    #                 if price == 'цена по запросу':
+    #                     price = None
+    #                 elif '$' in price:
+    #                     price = int(int(price.split(' ')[0].replace(' ', '')) * dollar_course)
+    #                 elif '€' in price:
+    #                     price = int(int(price.split(' ')[0].replace(' ', '')) * euro_course)
+    #                 else:
+    #                     price = int(price.split(' руб.')[0].replace(' ', ''))
+    #             except:
+    #                 price = None
+    #             data.append([name, price])
+    #
+    #     for link in links:
+    #         response = session.get(url + link)
+    #         soup = BeautifulSoup(response.content, 'html.parser')
+    #         try:
+    #             table = soup.find('table', class_='market_descr')
+    #             rows = table.findAll('tr')
+    #         except AttributeError:
+    #             log_plain_text_edit.insertPlainText(f'Не считалась таблица по адресу {url + link}.\n')
+    #         else:
+    #             for row in rows:
+    #                 cols = row.find_all('td')
+    #                 cols = [element.text.strip() for element in cols]
+    #                 data[-1].append(next(element.capitalize() if element else None for element in cols[1:]))
+    #             # i += 1
+    #     log_plain_text_edit.insertPlainText(f'Обработана страница {p} за {round(time() - start, 2)} сек.\n')
+    #
+    # df = pd.DataFrame(data, columns=columns)
+    #
+    # if not os.path.exists('raw_data'):
+    #     os.makedirs('raw_data')
+    # df.to_csv(f'raw_data/equestrian_{len(glob.glob("raw_data/equestrian*")) + 1}.csv', encoding='utf-8-sig',
+    #           index=False)
+    # parse_time = time() - parse_start
+    # minutes = int(parse_time / 60)
+    # seconds = round(parse_time - minutes * 60, 2)
+    # log_plain_text_edit.insertPlainText(
+    #     f'Парсинг занял {str(minutes) + " мин. " if minutes else ""}{seconds} сек., получено {len(data)} записей.\n')
 
-        if not contents:
-            break
 
+def parse(parse_parameters: tuple, p: int, log_plain_text_edit: QPlainTextEdit) -> None:
+    session = parse_parameters[0]
+    url = parse_parameters[1]
+    category = parse_parameters[2]
+    dollar_course = parse_parameters[3]
+    euro_course = parse_parameters[4]
+    data = parse_parameters[5]
+    start = time()
+    page = f'?p={p}'
+    response = session.get(url + category + (page if p else ''))
+    # p += 1
+    soup = BeautifulSoup(response.content, 'html.parser')
+    contents = soup.findAll('div', class_='offer')
+
+    if contents:
         links = []
         for item in contents:
             try:
                 name = next(iter(item.find('a', href=True))).strip()
                 price = next(iter(item.find('div', class_='price'))).strip()
-                links.append(item.find('a', href=True)['href'])
+                link = item.find('a', href=True)['href']
             except StopIteration:
-                print(f'Пустое объявление по адресу {url + item.find("a", href=True)["href"]}')
+                log_plain_text_edit.insertPlainText(
+                    f'Пустое объявление по адресу {url + item.find("a", href=True)["href"]}.\n')
             else:
                 try:
                     if price == 'цена по запросу':
@@ -72,33 +143,44 @@ def parse():
                     price = None
                 data.append([name, price])
 
-        for link in links:
-            response = session.get(url + link)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            try:
-                table = soup.find('table', class_='market_descr')
-                rows = table.findAll('tr')
-            except AttributeError:
-                print(f'Не считалась таблица по адресу {url + link}.')
-            else:
-                for row in rows:
-                    cols = row.find_all('td')
-                    cols = [element.text.strip() for element in cols]
-                    data[i].append(next(element.capitalize() if element else None for element in cols[1:]))
-                i += 1
-        print(f'Обработана страница {p} за {round(time() - start, 2)} сек.')
+                response = session.get(url + link)
+                soup = BeautifulSoup(response.content, 'html.parser')
+                try:
+                    table = soup.find('table', class_='market_descr')
+                    rows = table.findAll('tr')
+                except AttributeError:
+                    log_plain_text_edit.insertPlainText(f'Не считалась таблица по адресу {url + link}.\n')
+                else:
+                    for row in rows:
+                        cols = row.find_all('td')
+                        cols = [element.text.strip() for element in cols]
+                        data[-1].append(next(element.capitalize() if element else None for element in cols[1:]))
+                    # i += 1
+    log_plain_text_edit.insertPlainText(f'Обработана страница {p + 1} за {round(time() - start, 2)} сек.\n')
 
+
+def create_df(data: list) -> pd.DataFrame:
+    columns = ['Name', 'Price', 'Age', 'Sex', 'Color', 'Height', 'Sizes', 'Breed', 'Advertisement data',
+               'Region', 'Location', 'Horse club', 'Contacts']
     df = pd.DataFrame(data, columns=columns)
 
     if not os.path.exists('raw_data'):
         os.makedirs('raw_data')
-    df.to_csv(f'raw_data/equestrian_{len(glob.glob("raw_data/equestrian*")) + 1}.csv', encoding='utf-8-sig',
-              index=False)
-    parse_time = time() - parse_start
-    minutes = int(parse_time / 60)
-    seconds = round(parse_time - minutes * 60, 2)
-    print(f'Парсинг занял {str(minutes) + " мин. " if minutes else ""}{seconds} сек., получено {len(data)} объявлений.')
-    clear_data(df)
+    current_date = str(date.today()).replace('-', '.')
+    current_date=current_date[5:]+ '.'+ current_date[:4]
+
+    if not os.path.exists(f'raw_data/{current_date}'):
+        os.makedirs(f'raw_data/{current_date}')
+        file_number = len(glob.glob('clean_data/*')) + 1
+    else:
+        file_number = len(glob.glob('clean_data/*'))
+    df.to_csv(f'raw_data/{current_date}/equestrian_{file_number}.csv',
+              encoding='utf-8-sig', index=False)
+    # parse_time = time() - parse_start
+    # minutes = int(parse_time / 60)
+    # seconds = round(parse_time - minutes * 60, 2)
+    # log_plain_text_edit.insertPlainText(
+    #     f'Парсинг занял {str(minutes) + " мин. " if minutes else ""}{seconds} сек., получено {len(data)} записей.\n')
 
 
 def get_breeds() -> list[str]:
@@ -190,7 +272,11 @@ def age_clear(age: str) -> Union[int, None]:
         return search_digits.group(1)
 
 
-def clear_data(df: pd.DataFrame) -> None:
+def clear_data(log_plain_text_edit: QPlainTextEdit) -> None:
+    # raw_len = len(df.index)
+    current_date = str(date.today()).replace('-', '.')
+    current_date=current_date[5:]+ '.'+ current_date[:4]
+    df=pd.read_csv(f'raw_data/{current_date}/equestrian_{len(glob.glob("raw_data/**"))}.csv')
     df.dropna(subset=['Price'], inplace=True)
     df.dropna(subset=['Color'], inplace=True)
     df.dropna(subset=['Height'], inplace=True)
@@ -221,5 +307,13 @@ def clear_data(df: pd.DataFrame) -> None:
 
     if not os.path.exists('clean_data'):
         os.makedirs('clean_data')
-    df.to_csv(f'clean_data/equestrian_{len(glob.glob("clean_data/equestrian*")) + 1}.csv', encoding='utf-8-sig',
+
+    if not os.path.exists(f'clean_data/{current_date}'):
+        os.makedirs(f'clean_data/{current_date}')
+        file_number=len(glob.glob('clean_data/*')) + 1
+    else:
+        file_number = len(glob.glob('clean_data/*'))
+    df.to_csv(f'clean_data/{current_date}/equestrian_{file_number}.csv', encoding='utf-8-sig',
               index=False)
+
+    log_plain_text_edit.insertPlainText(f'После очистки осталось {len(df.index)} записей.')
