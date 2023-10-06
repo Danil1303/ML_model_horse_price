@@ -1,7 +1,7 @@
 import sys
 import glob
 import get_data
-
+import threads
 import pandas as pd
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QComboBox, QLineEdit, QPlainTextEdit, QPushButton, \
@@ -13,6 +13,8 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
 
         self.df = None
+
+        self.parse_thread = None
 
         self.setWindowTitle('Horse price')
         self.setFixedSize(175, 90)
@@ -39,20 +41,41 @@ class MainWindow(QMainWindow):
         self.parse_button.setText('Парсер')
         self.parse_button.setGeometry(420, 15, 135, 30)
         self.parse_button.setVisible(True)
-        # self.parse_button.clicked.connect(get_data.parse(self.log_plain_text_edit))
+        self.parse_button.clicked.connect(self.start_parse)
 
-        self.data_cleaning_button = QPushButton(self)
-        self.data_cleaning_button.setText('Объединение')
-        self.data_cleaning_button.setGeometry(420, 55, 135, 30)
-        self.data_cleaning_button.setVisible(True)
-        self.data_cleaning_button.setEnabled(True)
-        self.data_cleaning_button.clicked.connect(self.combine_data)
+        self.stop_parse_button = QPushButton(self)
+        self.stop_parse_button.setText('Стоп')
+        self.stop_parse_button.setGeometry(420, 55, 135, 30)
+        self.stop_parse_button.setVisible(True)
+        self.stop_parse_button.setEnabled(False)
+        self.stop_parse_button.clicked.connect(self.stop_parse)
+
+        # self.stop_parse_button = QPushButton(self)
+        # self.stop_parse_button.setText('Объединение')
+        # self.stop_parse_button.setGeometry(420, 95, 135, 30)
+        # self.stop_parse_button.setVisible(True)
+        # self.stop_parse_button.setEnabled(True)
+        # self.stop_parse_button.clicked.connect(self.combine_data)
 
     def combine_data(self):
         self.df = pd.concat([pd.read_csv(file) for file in glob.glob('clean_data/equestrian*')], ignore_index=True)
         self.log_plain_text_edit.insertPlainText(f'Загружено строк: {len(self.df.index)}.\n')
         self.df.drop_duplicates(keep='first', inplace=True)
         self.log_plain_text_edit.insertPlainText(f'Количество строк после удаления дубликатов: {len(self.df.index)}.\n')
+
+    def start_parse(self):
+
+        self.parse_thread = threads.ParseThread(self.log_plain_text_edit)
+        self.parse_thread.start()
+        self.parse_button.setEnabled(False)
+        self.stop_parse_button.setEnabled(True)
+
+    def stop_parse(self):
+
+        self.parse_thread.stop()
+        self.parse_thread=None
+        self.parse_button.setEnabled(True)
+        self.stop_parse_button.setEnabled(False)
 
 
 if __name__ == '__main__':
