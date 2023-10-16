@@ -100,7 +100,7 @@ def parse(parse_parameters: tuple, p: int, log_plain_text_edit: QPlainTextEdit) 
                         cols = [element.text.strip() for element in cols]
                         data[-1].append(next(element.capitalize() if element else None for element in cols[1:]))
         log_plain_text_edit.insertPlainText(f'Обработана страница {p + 1} за {round(time() - start, 2)} сек.\n')
-    # Флаг, определяющий будет ли продолжаться парсинг
+        # Флаг, определяющий будет ли продолжаться парсинг
         return True
     else:
         return False
@@ -261,3 +261,10 @@ def clear_data(log_plain_text_edit: QPlainTextEdit) -> None:
               index=False)
 
     log_plain_text_edit.insertPlainText(f'После очистки осталось {len(df.index)} записей.\n')
+
+
+def combine_data():
+    files = glob.glob(f'clean_data/**/**')
+    df = pd.concat((pd.read_csv(file) for file in files), ignore_index=True)
+    df.drop_duplicates(inplace=True)
+    df.to_csv(f'total_data.csv', encoding='utf-8-sig', index=False)
