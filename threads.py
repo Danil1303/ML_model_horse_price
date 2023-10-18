@@ -1,9 +1,11 @@
 import get_data
 from time import time
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
 class ParseThread(QThread):
+    signal_parse_finish = pyqtSignal(str)
+
     def __init__(self, log_plain_text_edit):
         QThread.__init__(self)
         self.flag = True
@@ -13,7 +15,7 @@ class ParseThread(QThread):
         self.run_parse_thread()
 
     def run_parse_thread(self):
-        self.log_plain_text_edit.insertPlainText(f'Старт парсинга.\n')
+        self.log_plain_text_edit.insertPlainText(f'Старт парсинга.\n\n')
         parse_start = time()
         parse_parameters = get_data.parse_initialize()
         data = parse_parameters[5]
@@ -29,7 +31,8 @@ class ParseThread(QThread):
         seconds = round(parse_time - minutes * 60, 2)
         self.log_plain_text_edit.insertPlainText(
             f'Парсинг занял {str(minutes) + " мин. " if minutes else ""}{seconds} сек., получено '
-            f'{len(data)} записей.\n')
+            f'{len(data)} записей.\n\n')
+        self.signal_parse_finish.emit('parse_finish')
         get_data.clear_data(self.log_plain_text_edit)
 
     def stop(self):
