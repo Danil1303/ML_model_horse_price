@@ -261,10 +261,12 @@ def clear_data(log_plain_text_edit: QPlainTextEdit) -> None:
               index=False)
 
     log_plain_text_edit.insertPlainText(f'После очистки осталось {len(df.index)} записей.\n')
+    log_plain_text_edit.insertPlainText('_______________________________________________________\n\n')
 
 
-def combine_data():
+def combine_data() -> pd.DataFrame:
     files = glob.glob(f'clean_data/**/**')
     df = pd.concat((pd.read_csv(file) for file in files), ignore_index=True)
     df.drop_duplicates(inplace=True)
     df.to_csv(f'total_data.csv', encoding='utf-8-sig', index=False)
+    return df
