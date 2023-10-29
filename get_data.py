@@ -12,8 +12,8 @@ from PyQt5.QtWidgets import QPlainTextEdit
 from requests.adapters import HTTPAdapter, Retry
 
 
-def parse_initialize():
-    # Задание параметров для парсера
+def parse_initialize() -> tuple[requests.sessions.Session, str, str, float, float, list]:
+    # Инициализация параметров для парсера и получение курсов рубль/доллар и рубль/евро для конвертации валют.
 
     session = requests.Session()
     retry = Retry(connect=5, backoff_factor=1)
@@ -36,12 +36,12 @@ def parse_initialize():
 
     response = requests.get(dollar_url, headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
-    soup_dollar_course = soup.findAll("span", {"class": "DFlfde SwHCTb", "data-precision": 2})
+    soup_dollar_course = soup.findAll('span', {'class': 'DFlfde SwHCTb', 'data-precision': 2})
     dollar_course = float(soup_dollar_course[0].text.replace(',', '.'))
 
     response = requests.get(euro_url, headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
-    soup_euro_course = soup.findAll("span", {"class": "DFlfde SwHCTb", "data-precision": 2})
+    soup_euro_course = soup.findAll('span', {'class': 'DFlfde SwHCTb', 'data-precision': 2})
     euro_course = float(soup_euro_course[0].text.replace(',', '.'))
 
     data = []
@@ -50,7 +50,7 @@ def parse_initialize():
 
 
 def parse(parse_parameters: tuple, p: int, log_plain_text_edit: QPlainTextEdit) -> bool:
-    # Парсер, получающий информацию со всех записей на одной странице
+    # Парсер, получающий информацию со всех записей на одной странице.
 
     session = parse_parameters[0]
     url = parse_parameters[1]
@@ -100,34 +100,33 @@ def parse(parse_parameters: tuple, p: int, log_plain_text_edit: QPlainTextEdit) 
                         cols = [element.text.strip() for element in cols]
                         data[-1].append(next(element.capitalize() if element else None for element in cols[1:]))
         log_plain_text_edit.insertPlainText(f'Обработана страница {p + 1} за {round(time() - start, 2)} сек.\n')
-        # Флаг, определяющий будет ли продолжаться парсинг
+        # Флаг, определяющий будет ли продолжаться парсинг дальше.
         return True
     else:
         return False
 
 
 def create_df(data: list):
-    # Функция, сохраняющая полученные с сайта записи в файл
+    # Функция, сохраняющая полученные с сайта записи в файл.
+
     columns = ['Name', 'Price', 'Age', 'Sex', 'Color', 'Height', 'Sizes', 'Breed', 'Advertisement data',
                'Region', 'Location', 'Horse club', 'Contacts']
     df = pd.DataFrame(data, columns=columns)
 
-    if not os.path.exists('raw_data'):
-        os.makedirs('raw_data')
+    if not os.path.exists('data/raw_data'):
+        os.makedirs('data/raw_data')
     current_date = str(date.today()).replace('-', '.')
     current_date = current_date[8:] + current_date[4:7] + '.' + current_date[:4]
 
-    if not os.path.exists(f'raw_data/{current_date}'):
-        os.makedirs(f'raw_data/{current_date}')
-        file_number = len(glob.glob('raw_data/*'))
-    else:
-        file_number = len(glob.glob('raw_data/*'))
-    df.to_csv(f'raw_data/{current_date}/equestrian_{file_number}.csv',
+    if not os.path.exists(f'data/raw_data/{current_date}'):
+        os.makedirs(f'data/raw_data/{current_date}')
+    file_number = len(glob.glob('data/raw_data/*'))
+    df.to_csv(f'data/raw_data/{current_date}/equestrian_{file_number}.csv',
               encoding='utf-8-sig', index=False)
 
 
 def get_breeds() -> list[str]:
-    # Функция, получающая с сайта список всех представленных пород
+    # Функция, получающая с сайта список всех представленных пород.
 
     if os.path.exists('breeds.txt'):
         with open('breeds.txt', 'r') as file:
@@ -156,36 +155,37 @@ def get_breeds() -> list[str]:
 
 
 def height_clear(height_str: str) -> Union[float, None]:
-    # Функция для форматирования столбца 'Heights'
+    # Функция для форматирования столбца 'Heights'.
 
-    # Подсчёт среднего для диапазонов в виде 'число-число'
+    # Подсчёт среднего для диапазонов в виде 'число-число'.
     if bool(re.search(r'\d+-\d+', height_str)):
         split_digit = height_str.split('-')
         part_1 = split_digit[0]
         part_2 = ''.join(filter(str.isdigit, split_digit[1]))
         return float(np.mean(list(map(int, [part_1, part_2]))))
 
-    # Перевод из десятичной записи в целочисленную
+    # Перевод из десятичной записи в целочисленную.
     elif bool(re.search(r'\d+[.,]\d+', height_str)):
         height_str = re.sub(r'[a-zA-Zа-яА-Я]', '', height_str)
         heights = re.split(r'[.,]', height_str)
         heights[1] = heights[1].replace('0', '')
-        # Например 1.05 м
+        # Например 1.05 м.
         if len(heights[0]) == 1:
             return float(heights[0]) * 100 + float(heights[1])
-        # Например 100.5 см
+        # Например 100.5 см.
         else:
             return float(heights[0]) + float(heights[1]) / 10
-    # Очистка записи, не содержащей цифр
+    # Обнуление записи, не содержащей цифр.
     elif re.match(r'^[а-яА-Я]+$', height_str):
         return None
-    # Удаление посторонних букв в записи, сохраняя цифры
+    # Удаление посторонних букв в записи, сохраняя цифры.
     else:
         return float(''.join(filter(str.isdigit, height_str)))
 
 
 def color_clear(df_color: str, main_colors: list[str]) -> Union[str, None]:
-    # Функция для форматирования столбца 'Color'
+    # Функция для форматирования столбца 'Color'.
+
     for color in main_colors:
         if color.lower() in df_color.lower():
             return color + 'ой'
@@ -196,7 +196,8 @@ def color_clear(df_color: str, main_colors: list[str]) -> Union[str, None]:
 
 
 def breed_clear(breed: str, breeds: list[str]) -> Union[str, None]:
-    # Функция для форматирования столбца 'Breed'
+    # Функция для форматирования столбца 'Breed'.
+
     if breed.lower() in breeds:
         return breed.capitalize()
     elif bool(re.search(r'Пони|они', breed)):
@@ -208,6 +209,8 @@ def breed_clear(breed: str, breeds: list[str]) -> Union[str, None]:
 
 
 def age_clear(age: str) -> Union[int, None]:
+    # Функция для форматирования столбца 'Age'.
+
     if '-' in age:
         return 0
     search_digits = re.search(r'\((\d+) [а-яА-Я]+\)', age)
@@ -216,57 +219,56 @@ def age_clear(age: str) -> Union[int, None]:
 
 
 def clear_data(log_plain_text_edit: QPlainTextEdit) -> None:
+    # Запуск очистки данных и сохранение результатов.
+
     current_date = str(date.today()).replace('-', '.')
     current_date = current_date[8:] + current_date[4:7] + '.' + current_date[:4]
-    df = pd.read_csv(f'raw_data/{current_date}/equestrian_{len(glob.glob("raw_data/**"))}.csv')
+    df = pd.read_csv(f'data/raw_data/{current_date}/equestrian_{len(glob.glob("data/raw_data/**"))}.csv')
     df.dropna(subset=['Price'], inplace=True)
     df.dropna(subset=['Color'], inplace=True)
     df.dropna(subset=['Height'], inplace=True)
     df = df.loc[df['Price'] >= 30000]
     df['Breed'] = df['Breed'].fillna('Без породы')
+
+    # Удаление столбцов с несущественной или отсутствующей в большинстве записей информацией.
     df.drop(['Name', 'Sizes', 'Advertisement data', 'Region', 'Location', 'Horse club', 'Contacts'], axis=1,
             inplace=True)
 
-    # Форматирование столбца 'Breed'
+    # Форматирование столбцов.
     breeds = get_breeds()
     df['Breed'] = df['Breed'].apply(lambda breed: breed_clear(breed, breeds))
 
-    # Форматирование столбца 'Height'
     df['Height'] = df['Height'].apply(height_clear)
     df = df.drop(df[(df['Height'] < 30) | (df['Height'] > 250)].index)
 
-    # Форматирование столбца 'Color'
     main_colors = ['Гнед', 'Рыж', 'Сер', 'Ворон', 'Пег', 'Солов', 'Караков', 'Булан', 'Бур', 'Чубар',
                    'Изабеллов', 'Игренев', 'Мышаст', 'Саврас', 'Чал']
     df['Color'] = df['Color'].apply(lambda color: color_clear(color, main_colors))
 
-    # Форматирование столбца 'Age'
     df['Age'] = df['Age'].apply(age_clear)
 
     df.dropna(subset=['Breed'], inplace=True)
     df.dropna(subset=['Height'], inplace=True)
     df.dropna(subset=['Color'], inplace=True)
 
-    # Сохранение обработанных данных
-    if not os.path.exists('clean_data'):
-        os.makedirs('clean_data')
+    # Сохранение обработанных данных.
+    if not os.path.exists('data/clean_data'):
+        os.makedirs('data/clean_data')
 
-    if not os.path.exists(f'clean_data/{current_date}'):
-        os.makedirs(f'clean_data/{current_date}')
-        file_number = len(glob.glob('clean_data/*'))
-    else:
-        file_number = len(glob.glob('clean_data/*'))
+    if not os.path.exists(f'data/clean_data/{current_date}'):
+        os.makedirs(f'data/clean_data/{current_date}')
+    file_number = len(glob.glob('data/clean_data/*'))
 
-    df.to_csv(f'clean_data/{current_date}/equestrian_{file_number}.csv', encoding='utf-8-sig',
-              index=False)
+    df.to_csv(f'data/clean_data/{current_date}/equestrian_{file_number}.csv', encoding='utf-8-sig', index=False)
 
     log_plain_text_edit.insertPlainText(f'После очистки осталось {len(df.index)} записей.\n')
     log_plain_text_edit.insertPlainText('_______________________________________________________\n\n')
 
 
-def combine_data() -> pd.DataFrame:
-    files = glob.glob(f'clean_data/**/**')
+def combine_data() -> None:
+    # Объединение данных из папки clean_data и удаление дубликатов.
+
+    files = glob.glob(f'data/clean_data/**/**')
     df = pd.concat((pd.read_csv(file) for file in files), ignore_index=True)
     df.drop_duplicates(inplace=True)
-    df.to_csv(f'total_data.csv', encoding='utf-8-sig', index=False)
-    return df
+    df.to_csv(f'data/total_data.csv', encoding='utf-8-sig', index=False)
