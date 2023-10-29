@@ -113,6 +113,9 @@ def create_df(data: list):
                'Region', 'Location', 'Horse club', 'Contacts']
     df = pd.DataFrame(data, columns=columns)
 
+    if not os.path.exists('data'):
+        os.makedirs('data')
+
     if not os.path.exists('data/raw_data'):
         os.makedirs('data/raw_data')
     current_date = str(date.today()).replace('-', '.')
